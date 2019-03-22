@@ -331,7 +331,7 @@ You can override any of the above parameters using run-time using command line a
 - ``--output`` Path to save the recorded data (default: ``None``)
 - ``--blotter`` Log trades to MySQL server used by this Blotter (default: ``auto-detect``)
 - ``--continuous`` Construct continuous Futures contracts (flag, default: ``True``)
-- ``--max_threads`` Maximum number of threads to use (default is 1)
+- ``--threads`` Maximum number of threads to use (default is 1)
 
 **Example:**
 
@@ -341,7 +341,7 @@ You can override any of the above parameters using run-time using command line a
 
 .. note::
 
-    **It's recommended that you set the** ``max_threads`` **parameter based on your strategy's needs and your machine's capabilities!**
+    **It's recommended that you set the** ``threads`` **parameter based on your strategy's needs and your machine's capabilities!**
     As a general rule of thumb, strategies that are trading a handful of symbols probably don't need to tweak this parameter.
 
 ----
@@ -350,7 +350,7 @@ Back-Testing Using QTPyLib
 ---------------------------
 
 In addition to live/paper trading, QTPyLib can also be used for back-testing
-**without changing event one line of code**, simply by adding the
+**without changing a single line of code**, simply by adding the
 following arguments when running your algo.
 
 .. note::
@@ -373,7 +373,7 @@ With your Blotter running in the background, run your algo from the command line
 
 .. code:: bash
 
-    $ python strategy.py --backtest --start 2015-01-01 --end 2015-12-31 --data ~/mycsvdata/ -output ~/portfolio.pkl
+    $ python strategy.py --backtest --start 2015-01-01 --end 2015-12-31 --data ~/mycsvdata/ --output ~/portfolio.pkl
 
 The resulting back-tested portfolio will be saved in ``~/portfolio.pkl`` for later analysis.
 

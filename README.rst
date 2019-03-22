@@ -6,13 +6,9 @@ Please refer to the ``master`` or ``develop`` branches for now.
 QTPyLib, Pythonic Algorithmic Trading
 =====================================
 
-.. image:: https://img.shields.io/pypi/pyversions/qtpylib.svg?maxAge=60
+.. image:: https://img.shields.io/badge/python-3.4+-blue.svg?style=flat
     :target: https://pypi.python.org/pypi/qtpylib
     :alt: Python version
-
-.. image:: https://img.shields.io/travis/ranaroussi/qtpylib/master.svg?maxAge=1
-    :target: https://travis-ci.org/ranaroussi/qtpylib
-    :alt: Travis-CI build status
 
 .. image:: https://img.shields.io/pypi/v/qtpylib.svg?maxAge=60
     :target: https://pypi.python.org/pypi/qtpylib
@@ -22,6 +18,10 @@ QTPyLib, Pythonic Algorithmic Trading
     :target: https://pypi.python.org/pypi/qtpylib
     :alt: PyPi status
 
+.. image:: https://img.shields.io/travis/ranaroussi/qtpylib/master.svg?maxAge=1
+    :target: https://travis-ci.org/ranaroussi/qtpylib
+    :alt: Travis-CI build status
+
 .. image:: https://img.shields.io/badge/docs-latest-brightgreen.svg?style=flat
     :target: http://qtpylib.io/docs/latest/?badge=latest
     :alt: Documentation Status
@@ -30,7 +30,7 @@ QTPyLib, Pythonic Algorithmic Trading
     :target: https://github.com/ranaroussi/qtpylib
     :alt: Star this repo
 
-.. image:: https://img.shields.io/twitter/follow/aroussi.svg?style=social&label=Follow%20Me&maxAge=60
+.. image:: https://img.shields.io/twitter/follow/aroussi.svg?style=social&label=Follow&maxAge=60
     :target: https://twitter.com/aroussi
     :alt: Follow me on twitter
 
@@ -261,7 +261,7 @@ Requirements
 * `Flask <http://flask.pocoo.org>`_ for the Dashboard (tested to work with >=0.11)
 * `Requests <https://github.com/kennethreitz/requests>`_ (tested to work with >=2.10.0)
 * `IbPy2 <https://github.com/blampe/IbPy>`_ (tested to work with >=0.8.0)
-* `ezIBpy <https://github.com/ranaroussi/ezibpy>`_ (IbPy wrapper, tested to work with >=1.12.62)
+* `ezIBpy <https://github.com/ranaroussi/ezibpy>`_ (IbPy wrapper, tested to work with >=1.12.66)
 * Latest Interactive Brokers’ `TWS <https://www.interactivebrokers.com/en/index.php?f=15875>`_ or `IB Gateway <https://www.interactivebrokers.com/en/index.php?f=16457>`_ installed and running on the machine
 * `MySQL Server <https://www.mysql.com/>`_ installed and running with a database for QTPyLib
 

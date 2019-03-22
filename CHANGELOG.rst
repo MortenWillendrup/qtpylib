@@ -1,6 +1,44 @@
 Release Notes
 =============
 
+*February 13, 2019*
+
+1.5.83
+-----------
+- Fix numpy transpose error in stoch indicator
+- Fix reports' ``KeyError`` under Python 3.7+ when not using ``--nopass``
+- Fix reports' static file error with incorrect path
+
+*January 11, 2019*
+
+1.5.82
+-----------
+- Set strategy's logging level to ``INFO``
+- Suppress SQL messages when using ``--dbskip``
+- Added option to set trailing stop offset type by specifiying ``trail_stop_type``. Options are: **amount** and **percent** (default)
+- Defaults to single threaded mode unless otherwise specified
+- Requires ezIBpy >= 1.12.66
+- Lots of bugfixes, and code improvements
+
+*September 17, 2018*
+
+1.5.81
+-----------
+- Added official support for Python 3.7
+- Removed Google and Yahoo data retrieval methods from ``Workflow``
+- Added auto-resample option to ``Workflow.prepare_data``
+- Fixed backtesting issues related to sometimes not logging positions
+- Lots of bugfixes, and code improvements
+
+
+*September 12, 2018*
+
+1.5.80
+-----------
+- Fixed issues related to multi-instrument strategies
+- Misc fixed typos, bugfixes, and code improvements
+
+
 *September 7, 2018*
 
 1.5.79

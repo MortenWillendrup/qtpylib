@@ -43,8 +43,9 @@ import pymysql
 from pymysql.constants.CLIENT import MULTI_STATEMENTS
 
 from numpy import (
-    isnan as npisnan,
-    nan as npnan
+    isnan as np_isnan,
+    nan as np_nan,
+    int64 as np_int64
 )
 
 from ezibpy import (
@@ -175,7 +176,8 @@ class Blotter():
         # read cached args to detect duplicate blotters
         self.duplicate_run = False
         self.cahced_args = {}
-        self.args_cache_file = "%s/%s.qtpylib" % (tempfile.gettempdir(), self.name)
+        self.args_cache_file = "%s/%s.qtpylib" % (
+            tempfile.gettempdir(), self.name)
         if os.path.exists(self.args_cache_file):
             self.cahced_args = self._read_cached_args()
 
@@ -211,12 +213,13 @@ class Blotter():
             self.log_blotter.info("Deleting runtime args...")
             self._remove_cached_args()
 
-        self.log_blotter.info("Disconnecting from MySQL...")
-        try:
-            self.dbcurr.close()
-            self.dbconn.close()
-        except Exception as e:
-            pass
+        if not self.args['dbskip']:
+            self.log_blotter.info("Disconnecting from MySQL...")
+            try:
+                self.dbcurr.close()
+                self.dbconn.close()
+            except Exception as e:
+                pass
 
         if terminate:
             os._exit(0)
@@ -673,7 +676,18 @@ class Blotter():
 
     # -------------------------------------------
     def broadcast(self, data, kind):
-        string2send = "%s %s" % (self.args["zmqtopic"], json.dumps(data))
+        def int64_handler(o):
+            if isinstance(o, np_int64):
+                try:
+                    return pd.to_datetime(o, unit='ms').strftime(
+                        ibDataTypes["DATE_TIME_FORMAT_LONG"])
+                except Exception as e:
+                    return int(o)
+            raise TypeError
+
+        string2send = "%s %s" % (
+            self.args["zmqtopic"], json.dumps(data, default=int64_handler))
+
         # print(kind, string2send)
         try:
             self.socket.send_string(string2send)
@@ -804,7 +818,7 @@ class Blotter():
                                 df['expiry'] >= int(datetime.now().strftime('%Y%m')))) | (
                             (df['expiry'] >= 1000000) & (
                                 df['expiry'] >= int(datetime.now().strftime('%Y%m%d')))) |
-                            npisnan(df['expiry'])
+                            np_isnan(df['expiry'])
                             ]
 
                     # fix expiry formatting (no floats)
@@ -879,7 +893,7 @@ class Blotter():
 
         # remove future dates
         df['datetime'] = pd.to_datetime(df['datetime'], utc=True)
-        blacklist = df[df['datetime'] > datetime.utcnow()]
+        blacklist = df[df['datetime'] > pd.to_datetime('now', utc=True)]
         df = df.loc[set(df.index) - set(blacklist)]  # .tail()
 
         # loop through data, symbol by symbol
@@ -1033,7 +1047,7 @@ class Blotter():
                         continue
 
                     # convert None to np.nan !!
-                    data.update((k, npnan)
+                    data.update((k, np_nan)
                                 for k, v in data.items() if v is None)
 
                     # quote
@@ -1086,7 +1100,7 @@ class Blotter():
         try:
             for i in range(len(data)):
                 handler(data.iloc[i:i + 1])
-                time.sleep(.1)
+                time.sleep(.15)
 
             asynctools.multitasking.wait_for_tasks()
             print("\n\n>>> Backtesting Completed.")
@@ -1224,7 +1238,8 @@ class Blotter():
         self.dbcurr.execute("SHOW TABLES")
         tables = [table[0] for table in self.dbcurr.fetchall()]
 
-        required = ["bars", "ticks", "symbols", "trades", "greeks", "_version_"]
+        required = ["bars", "ticks", "symbols",
+                    "trades", "greeks", "_version_"]
         if all(item in tables for item in required):
             self.dbcurr.execute("SELECT version FROM `_version_`")
             db_version = self.dbcurr.fetchone()
@@ -1516,7 +1531,10 @@ def prepare_history(data, resolution="1T", tz="UTC", continuous=True):
             all_dfs.append(continuous)
 
         # make one df again
-        data = pd.concat(all_dfs, sort=True)
+        # data = pd.concat(all_dfs, sort=True)
+        data['datetime'] = data.index
+        data.groupby([data.index, 'symbol'], as_index=False
+                     ).last().set_index('datetime').dropna()
 
     data = tools.resample(data, resolution, tz)
     return data

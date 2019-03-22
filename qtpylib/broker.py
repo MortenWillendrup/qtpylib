@@ -83,11 +83,24 @@ class Broker():
         # initilize class logger
         self.log_broker = logging.getLogger(__name__)
 
-        # default params (overrided in algo)
-        self.timezone = "UTC"
-        self.last_price = {}
-        self.tick_window = 1000
-        self.bar_window = 100
+        # -----------------------------------
+        # assign default vals if not propogated from algo
+        if not hasattr(self, 'timezone'):
+            self.timezone = "UTC"
+        if not hasattr(self, 'tick_window'):
+            self.tick_window = 1000
+        if not hasattr(self, 'bar_window'):
+            self.bar_window = 100
+        if not hasattr(self, 'last_price'):
+            self.last_price = {}
+        if not hasattr(self, 'backtest'):
+            self.backtest = False
+        if not hasattr(self, 'sms_numbers'):
+            self.sms_numbers = []
+        if not hasattr(self, 'trade_log_dir'):
+            self.trade_log_dir = None
+        if not hasattr(self, 'blotter_name'):
+            self.blotter_name = None
 
         # -----------------------------------
         # connect to IB
@@ -97,7 +110,22 @@ class Broker():
 
         self.ibConn = ezibpy.ezIBpy()
         self.ibConn.ibCallback = self.ibCallback
-        self.ibConnect()
+        # self.ibConnect()
+
+        connection_tries = 0
+        while not self.ibConn.connected:
+            self.ibConn.connect(clientId=self.ibclient,
+                                port=self.ibport, host=self.ibserver)
+            time.sleep(1)
+            if not self.ibConn.connected:
+                # print('*', end="", flush=True)
+                connection_tries += 1
+                if connection_tries > 10:
+                    self.log_broker.error(
+                        "Cannot connect to Interactive Brokers...")
+                    sys.exit(1)
+
+        self.log_broker.info("Connection established...")
 
         # -----------------------------------
         # create contracts
@@ -144,20 +172,6 @@ class Broker():
         self.dbconn = None
 
         # -----------------------------------
-        # assign default vals if not propogated from algo
-        if not hasattr(self, 'backtest'):
-            self.backtest = False
-
-        if not hasattr(self, 'sms_numbers'):
-            self.sms_numbers = []
-
-        if not hasattr(self, 'trade_log_dir'):
-            self.trade_log_dir = None
-
-        if not hasattr(self, 'blotter_name'):
-            self.blotter_name = None
-
-        # -----------------------------------
         # load blotter settings
         self.blotter_args = load_blotter_args(
             self.blotter_name, logger=self.log_broker)
@@ -174,7 +188,6 @@ class Broker():
                 autocommit=True
             )
             self.dbcurr = self.dbconn.cursor()
-
         # -----------------------------------
         # do stuff on exit
         atexit.register(self._on_exit)
@@ -313,7 +326,8 @@ class Broker():
             if order["status"] in ["OPENED", "SUBMITTED"]:
                 if orderId in self.orders.pending_ttls:
                     self._update_pending_order(symbol, orderId,
-                                               self.orders.pending_ttls[orderId], quantity)
+                                               self.orders.pending_ttls[orderId],
+                                               quantity)
 
             elif order["status"] == "FILLED":
                 self._update_order_history(
@@ -557,8 +571,9 @@ class Broker():
 
     # ---------------------------------------
     def _create_order(self, symbol, direction, quantity, order_type="",
-                      limit_price=0, expiry=0, orderId=0, target=0, initial_stop=0,
-                      trail_stop_at=0, trail_stop_by=0, stop_limit=False, **kwargs):
+                      limit_price=0, expiry=0, orderId=0, target=0,
+                      initial_stop=0, trail_stop_at=0, trail_stop_by=0,
+                      stop_limit=False, trail_stop_type='percent', **kwargs):
 
         # fix prices to comply with contract's min-tick
         ticksize = self.get_contract_details(symbol)['m_minTick']
@@ -567,6 +582,7 @@ class Broker():
         initial_stop = tools.round_to_fraction(initial_stop, ticksize)
         trail_stop_at = tools.round_to_fraction(trail_stop_at, ticksize)
         trail_stop_by = tools.round_to_fraction(trail_stop_by, ticksize)
+        trail_stop_type = "amount" if trail_stop_type == "amount" else "percent"
 
         self.log_broker.debug('CREATE ORDER: %s %4d %s %s', direction,
                               quantity, symbol, dict(locals(), **kwargs))
@@ -595,10 +611,9 @@ class Broker():
         # don't submit order if a pending one is waiting
         if symbol in self.orders.pending:
             self.log_broker.warning(
-                'Not submitting %s order, orders pending: %s', symbol, self.orders.pending)
+                'Not submitting %s order, orders pending: %s', symbol,
+                self.orders.pending)
             return
-
-        # @TODO - decide on quantity here
 
         # continue...
         order_quantity = abs(quantity)
@@ -636,13 +651,18 @@ class Broker():
 
             # triggered trailing stop?
             if trail_stop_by != 0 and trail_stop_at != 0:
-                self.ibConn.createTriggerableTrailingStop(symbol, -order_quantity,
-                                                          triggerPrice=trail_stop_at,
-                                                          trailPercent=trail_stop_by,
-                                                          # trailAmount   = trail_stop_by,
-                                                          parentId=order['entryOrderId'],
-                                                          stopOrderId=order["stopOrderId"]
-                                                          )
+                trail_stop_params = {
+                    "symbol": symbol,
+                    "quantity": -order_quantity,
+                    "triggerPrice": trail_stop_at,
+                    "parentId": order["entryOrderId"],
+                    "stopOrderId": order["stopOrderId"]
+                }
+                if trail_stop_type.lower() == 'amount':
+                    trail_stop_params["trailAmount"] = trail_stop_by
+                else:
+                    trail_stop_params["trailPercent"] = trail_stop_by
+                self.ibConn.createTriggerableTrailingStop(**trail_stop_params)
 
             # add all orders to history
             self._update_order_history(symbol=symbol,
@@ -680,7 +700,7 @@ class Broker():
         # add orderId / ttl to (auto-adds to history)
         expiry = expiry * 1000 if expiry > 0 else 60000  # 1min
         self._update_pending_order(symbol, orderId, expiry, order_quantity)
-
+        time.sleep(0.1)
 
     # ---------------------------------------
     def _cancel_order(self, orderId):
@@ -880,7 +900,26 @@ class Broker():
     def get_positions(self, symbol):
         symbol = self.get_symbol(symbol)
 
-        if symbol in self.ibConn.positions:
+        if self.backtest:
+            position = 0
+            avgCost = 0.0
+
+            if self.datastore.recorded is not None:
+                data = self.datastore.recorded
+                col = symbol.upper() + '_POSITION'
+                position = data[col].values[-1]
+                if position != 0:
+                    pos = data[col].diff()
+                    avgCost = data[data.index.isin(pos[pos != 0][-1:].index)
+                                   ][symbol.upper() + '_OPEN'].values[-1]
+            return {
+                    "symbol": symbol,
+                    "position": position,
+                    "avgCost":  avgCost,
+                    "account":  "Backtest"
+                }
+
+        elif symbol in self.ibConn.positions:
             return self.ibConn.positions[symbol]
 
         return {
